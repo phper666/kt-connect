@@ -2,6 +2,12 @@ package command
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"strings"
+
 	"github.com/alibaba/kt-connect/pkg/kt/command/clean"
 	"github.com/alibaba/kt-connect/pkg/kt/command/connect"
 	"github.com/alibaba/kt-connect/pkg/kt/command/general"
@@ -10,17 +16,16 @@ import (
 	"github.com/alibaba/kt-connect/pkg/kt/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 // NewConnectCommand return new connect command
 func NewConnectCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "connect",
+		Use:   "connect",
 		Short: "Create a network tunnel to kubernetes cluster",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				return fmt.Errorf("too many options specified (%s)", strings.Join(args, ",") )
+				return fmt.Errorf("too many options specified (%s)", strings.Join(args, ","))
 			}
 			if err := preCheck(); err != nil {
 				return err
@@ -49,6 +54,10 @@ func Connect() error {
 		go silenceCleanup()
 	}
 
+	// Setup signal file watcher
+	signalFile := filepath.Join(os.TempDir(), fmt.Sprintf("ktctl-connect-signal-%d", os.Getpid()))
+	go watchConnectSignalFile(signalFile, ch)
+
 	log.Info().Msgf("Using %s mode", opt.Get().Connect.Mode)
 	if opt.Get().Connect.Mode == util.ConnectModeTun2Socks {
 		err = connect.ByTun2Socks()
@@ -59,16 +68,47 @@ func Connect() error {
 			util.ConnectModeTun2Socks, util.ConnectModeShuttle)
 	}
 	if err != nil {
+		// Clean up signal file
+		os.RemoveAll(signalFile)
 		return err
 	}
 	log.Info().Msg("---------------------------------------------------------------")
 	log.Info().Msgf(" All looks good, now you can access to resources in the kubernetes cluster")
 	log.Info().Msg("---------------------------------------------------------------")
 
+	if util.IsWindows() {
+		log.Info().Msgf("You can stop the connection by creating a signal file:")
+		log.Info().Msgf("PowerShell:   \"stop\" | Out-File -FilePath %s -Encoding ASCII", signalFile)
+		log.Info().Msgf("Command Prompt: echo stop > %s", signalFile)
+	} else {
+		log.Info().Msgf("You can stop the connection by creating a signal file: echo stop > %s", signalFile)
+	}
+
 	// watch background process, clean the workspace and exit if background process occur exception
 	s := <-ch
 	log.Info().Msgf("Terminal signal is %s", s)
+
+	// Clean up signal file
+	os.RemoveAll(signalFile)
 	return nil
+}
+
+func watchConnectSignalFile(signalFile string, ch chan os.Signal) {
+	// Create the signal file to indicate connect is ready
+	os.Create(signalFile)
+
+	for {
+		time.Sleep(1 * time.Second)
+
+		// Check if signal file contains "stop"
+		if content, err := os.ReadFile(signalFile); err == nil {
+			if strings.TrimSpace(string(content)) == "stop" {
+				// Send interrupt signal to the main routine
+				ch <- os.Interrupt
+				return
+			}
+		}
+	}
 }
 
 func preCheck() error {
