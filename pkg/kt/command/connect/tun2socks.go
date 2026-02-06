@@ -93,13 +93,14 @@ func startSocks5Connection(podIP, privateKey string, localSshPort int, isInitCon
 		// will hang here if not error happen
 		err := sshchannel.Ins().StartSocks5Proxy(privateKey, sshAddress, socks5Address)
 		if !gone {
-			res <-err
+			res <- err
 		}
 		log.Debug().Err(err).Msgf("Socks proxy interrupted")
 		if ticker != nil {
 			ticker.Stop()
 		}
-		time.Sleep(10 * time.Second)
+		// Reduce reconnect delay from 10s to 2s to minimize downtime
+		time.Sleep(2 * time.Second)
 		log.Debug().Msgf("Socks proxy reconnecting ...")
 		_ = startSocks5Connection(podIP, privateKey, localSshPort, false)
 	}()
@@ -122,15 +123,24 @@ func setupSocks5HeartBeat(podIP, socks5Address string) *time.Ticker {
 	if err != nil {
 		log.Warn().Err(err).Msgf("Failed to create socks proxy heart beat ticker")
 	}
-	ticker := time.NewTicker(60 * time.Second)
+	// Increase heartbeat frequency from 60s to 30s for faster failure detection
+	ticker := time.NewTicker(30 * time.Second)
+	consecutiveFailures := 0
 	go func() {
 	TickLoop:
 		for {
 			select {
 			case <-ticker.C:
 				if c, err2 := dialer.Dial("tcp", fmt.Sprintf("[%s]:%d", podIP, common.StandardSshPort)); err2 != nil {
-					log.Debug().Err(err2).Msgf("Socks proxy heartbeat interrupted")
+					consecutiveFailures++
+					log.Warn().Err(err2).Msgf("Socks proxy heartbeat failed (consecutive failures: %d)", consecutiveFailures)
+					// If 3 consecutive failures, consider the connection dead
+					if consecutiveFailures >= 3 {
+						log.Error().Msgf("Socks proxy heartbeat failed 3 times consecutively, connection may be dead")
+					}
 				} else {
+					// Reset failure counter on success
+					consecutiveFailures = 0
 					_ = c.Close()
 					log.Debug().Msgf("Heartbeat socks proxy ticked at %s", util.FormattedTime())
 				}

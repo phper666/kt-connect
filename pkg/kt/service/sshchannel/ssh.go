@@ -16,13 +16,13 @@ import (
 	"github.com/wzshiming/sshproxy"
 )
 
-type SocksLogger struct {}
+type SocksLogger struct{}
 
 func (s SocksLogger) Println(v ...any) {
 	_, _ = util.BackgroundLogger.Write([]byte(fmt.Sprint(v...) + util.Eol))
 }
 
-// StartSocks5Proxy start socks5 proxy
+// StartSocks5Proxy start socks5 proxy with connection management
 func (c *Cli) StartSocks5Proxy(privateKey, sshAddress, socks5Address string) (err error) {
 	dialer, err := sshproxy.NewDialer(getSshTunnelAddress(privateKey, sshAddress))
 	if err != nil {
@@ -30,10 +30,24 @@ func (c *Cli) StartSocks5Proxy(privateKey, sshAddress, socks5Address string) (er
 	}
 	defer dialer.Close()
 
+	// Wrap dialer with timeout and proper connection management
+	// 5 minutes idle timeout to prevent connection leaks
+	wrappedDialer := NewDialerWrapper(dialer, 5*time.Minute)
+
 	svc := &socks5.Server{
 		Logger:    SocksLogger{},
-		ProxyDial: dialer.DialContext,
+		ProxyDial: wrappedDialer.DialContext,
 	}
+
+	// Start connection statistics reporter
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			log.Debug().Msgf("Socks5 proxy connection count: %d", wrappedDialer.GetConnectionCount())
+		}
+	}()
+
 	return svc.ListenAndServe("tcp", socks5Address)
 }
 
@@ -157,7 +171,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 		if _, err := io.Copy(client, remoteReader); err != nil {
 			log.Warn().Err(err).Msgf("Error while copy remote->local")
 		}
-		done<-1
+		done <- 1
 	}()
 
 	// Start local -> remote data transfer
@@ -167,7 +181,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 		if _, err := io.Copy(remote, localReader); err != nil {
 			log.Warn().Err(err).Msgf("Error while copy local->remote")
 		}
-		done<-1
+		done <- 1
 	}()
 
 	<-done
@@ -180,6 +194,6 @@ func handleClient(client net.Conn, remote net.Conn) {
 func handleBrokenTunnel(done chan int) {
 	if r := recover(); r != nil {
 		log.Error().Msgf("Ssh tunnel broken: %v", r)
-		done<-1
+		done <- 1
 	}
 }
