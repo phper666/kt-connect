@@ -4,6 +4,11 @@ on:
   push:
     tags:
     - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
 jobs:
   release-cli:
     name: Release packages
@@ -18,6 +23,8 @@ jobs:
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: Get go mod cache
       uses: actions/cache@v1
@@ -35,26 +42,13 @@ jobs:
             dep ensure
         fi
 
-    - name: Docker login
-      uses: azure/docker-login@v1
-      with:
-        login-server: registry.cn-hangzhou.aliyuncs.com
-        username: ${{ secrets.ALIYUN_DOCKER_USERNAME }}
-        password: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
-
+    # Docker 镜像构建已移除（fork 复用官方 v0.3.7 镜像，无阿里云 registry 推送权限）
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v1
       with:
-        version: latest
-        args: release --rm-dist
+        version: v1.26.2
+        args: release --rm-dist ${{ github.event_name == 'workflow_dispatch' && '--snapshot' || '' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Update Homebrew formula
-      uses: dawidd6/action-homebrew-bump-formula@v3
-      with:
-        token: ${{secrets.GITHUB_TOKEN}}
-        formula: kt-connect
-        tag: ${{github.ref}}
-        revision: ${{github.sha}}
-        force: false
+    # Homebrew formula 更新已移除（fork 不维护官方 formula）

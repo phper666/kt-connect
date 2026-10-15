@@ -5,7 +5,6 @@ before:
   hooks:
     - make mod
     - bash build/scripts/wintun.sh
-    - bash build/scripts/docker.sh
 builds:
   - id: "ktctl"
     main: ./cmd/ktctl/main.go
@@ -20,74 +19,20 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
-  - id: "shadow"
-    main: ./cmd/shadow/main.go
-    binary: artifacts/shadow/shadow-linux-amd64
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - id: "router"
-    main: ./cmd/router/main.go
-    binary: artifacts/router/router-linux-amd64
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - id: "navigator"
-    main: ./cmd/navigator/main.go
-    binary: artifacts/navigator/navigator-linux-amd64
-    goos:
-      - linux
-    goarch:
-      - amd64
-dockers:
-  - goos: linux
-    goarch: amd64
-    ids:
-      - shadow
-    image_templates:
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-shadow:latest"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-shadow:{{ .Tag }}"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-shadow:v{{ .Major }}"
-    dockerfile: artifacts/docker/shadow/Dockerfile
-    skip_push: false
-    extra_files:
-      - build/docker/shadow/run.sh
-      - build/docker/shadow/disconnect.sh
-  - goos: linux
-    goarch: amd64
-    ids:
-      - router
-    image_templates:
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-router:latest"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-router:{{ .Tag }}"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-router:v{{ .Major }}"
-    dockerfile: artifacts/docker/router/Dockerfile
-    skip_push: false
-    extra_files:
-      - build/docker/router/nginx.conf
-  - goos: linux
-    goarch: amd64
-    ids:
-      - navigator
-    image_templates:
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-navigator:latest"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-navigator:{{ .Tag }}"
-      - "registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-navigator:v{{ .Major }}"
-    dockerfile: artifacts/docker/navigator/Dockerfile
-    skip_push: false
-    extra_files:
-      - build/docker/navigator/setup_iptables.sh
+    ldflags:
+      # 注意：main.version 必须保持与官方发布一致的版本号（当前 0.3.7）。
+      # ktctl 用它拼接 shadow/router 镜像 tag（registry.cn-hangzhou.aliyuncs.com/rdc-incubator/kt-connect-*:v{version}），
+      # fork 复用官方镜像；若注入 release tag 会导致镜像 tag 不存在（ImagePullBackOff）。
+      - -s -w -X main.version=0.3.7
+# shadow/router/navigator 构建与 dockers 段已移除：
+# fork 不构建/推送 docker 镜像（无阿里云 registry 权限），复用官方 v0.3.7 镜像
 archives:
   - id: ktctl
     builds:
       - ktctl
     name_template: 'ktctl_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+    # 统一使用 zip（IDEA 调试插件 ms-localdebug 的工具安装器按 zip 解压）
+    format: zip
     files:
       - src: 'artifacts/{{ .Os }}/{{ .Arch }}/*'
         dst: .
@@ -112,7 +57,7 @@ changelog:
       - '^refactor:'
 release:
   github:
-    owner: alibaba
+    owner: phper666
     name: kt-connect
   ids:
     - ktctl
