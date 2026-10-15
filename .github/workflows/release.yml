@@ -16,18 +16,18 @@ jobs:
     steps:
 
     - name: Set up Go 1.18
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.18
+        go-version: '1.18'
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Get go mod cache
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -44,7 +44,7 @@ jobs:
 
     # Docker 镜像构建已移除（fork 复用官方 v0.3.7 镜像，无阿里云 registry 推送权限）
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v1
+      uses: goreleaser/goreleaser-action@v6
       with:
         version: v1.26.2
         args: release --rm-dist ${{ github.event_name == 'workflow_dispatch' && '--snapshot' || '' }}
