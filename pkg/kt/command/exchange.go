@@ -108,16 +108,17 @@ func watchExchangeSignalFile(signalFile string, ch chan os.Signal) {
 	// Create the signal file to indicate exchange is ready
 	os.Create(signalFile)
 
+	// IDEA 调试插件（ms-localdebug）将停止信号写在 ~/.localdebug/signal/，同时监听该备用路径
+	altFile := altSignalFilePath(signalFile)
+
 	for {
 		time.Sleep(1 * time.Second)
 
 		// Check if signal file contains "stop"
-		if content, err := os.ReadFile(signalFile); err == nil {
-			if strings.TrimSpace(string(content)) == "stop" {
-				// Send interrupt signal to the main routine
-				ch <- os.Interrupt
-				return
-			}
+		if isStopSignal(signalFile) || isStopSignal(altFile) {
+			// Send interrupt signal to the main routine
+			ch <- os.Interrupt
+			return
 		}
 	}
 }
