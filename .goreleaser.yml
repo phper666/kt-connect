@@ -8,7 +8,17 @@ before:
 builds:
   - id: "ktctl"
     main: ./cmd/ktctl/main.go
-    binary: ktctl
+    # 裸二进制资产名（带平台/版本，直接下载即用）
+    binary: >-
+      ktctl_{{ .Version }}_
+      {{- if eq .Os "darwin" }}MacOS
+      {{- else if eq .Os "linux" }}Linux
+      {{- else if eq .Os "windows" }}Windows
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else if eq .Arch "arm64" }}arm_64
+      {{- else }}{{ .Arch }}{{ end }}
     goos:
       - linux
       - darwin
@@ -30,6 +40,13 @@ archives:
   - id: ktctl
     builds:
       - ktctl
+    # 默认裸二进制直发（Linux/macOS：下载即用，无需解压）；
+    # Windows 保留 zip（需随包携带 wintun.dll）
+    format: binary
+    format_overrides:
+      - goos: windows
+        format: zip
+    # 仅 Windows zip 资产命名使用（binary 模式忽略）
     name_template: >-
       ktctl_{{ .Version }}_
       {{- if eq .Os "darwin" }}MacOS
@@ -40,8 +57,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else if eq .Arch "arm64" }}arm_64
       {{- else }}{{ .Arch }}{{ end }}
-    # 统一使用 zip（IDEA 调试插件 ms-localdebug 的工具安装器按 zip 解压）
-    format: zip
     files:
       - src: 'artifacts/{{ .Os }}/{{ .Arch }}/*'
         dst: .
