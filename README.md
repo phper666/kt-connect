@@ -18,16 +18,16 @@ English | [简体中文](./README_CN.md)
 ## 下载（Fork Release）
 
 - 全部版本：[Releases](https://github.com/phper666/kt-connect/releases)
-- 最新 `v0.3.7-phper666.1`（zip：Linux/macOS/Windows × x86_64/i386/arm_64）：
+- 最新 `v0.3.7-phper666.2`：**Linux / macOS 为裸二进制**（下载即用，`chmod +x` 后直接运行）；**Windows 为 zip**（含 wintun.dll）
 
 | 平台 | 下载链接 |
 |:--|:--|
-| macOS (Intel) | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.1/ktctl_0.3.7-phper666.1_MacOS_x86_64.zip` |
-| macOS (Apple Silicon) | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.1/ktctl_0.3.7-phper666.1_MacOS_arm_64.zip` |
-| Linux | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.1/ktctl_0.3.7-phper666.1_Linux_x86_64.zip` |
-| Windows | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.1/ktctl_0.3.7-phper666.1_Windows_x86_64.zip` |
+| macOS (Intel) | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.2/ktctl_0.3.7-phper666.2_MacOS_x86_64` |
+| macOS (Apple Silicon) | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.2/ktctl_0.3.7-phper666.2_MacOS_arm_64` |
+| Linux | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.2/ktctl_0.3.7-phper666.2_Linux_x86_64` |
+| Windows | `https://github.com/phper666/kt-connect/releases/download/v0.3.7-phper666.2/ktctl_0.3.7-phper666.2_Windows_x86_64.zip` |
 
-> IDEA 调试插件 ms-localdebug 的「工具安装」下载地址可直接使用上表链接（安装器按 zip 解压）。
+> IDEA 调试插件 ms-localdebug 的「工具安装」下载地址可直接使用上表链接（安装器自动识别裸二进制/zip）。
 
 ## 打包（维护者）
 
